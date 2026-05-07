@@ -58,11 +58,11 @@ function Read-PasswordText {
 
 function Select-ServiceValue {
     $services = @(
-        @{ Label = "中国移动"; Value = "cmcc" },
-        @{ Label = "校园网"; Value = "default" },
-        @{ Label = "校园内网"; Value = "local" },
-        @{ Label = "中国联通"; Value = "unicom" },
-        @{ Label = "中国电信"; Value = "ctcc" }
+        @{ Label = "China Mobile"; Value = "cmcc" },
+        @{ Label = "Campus network"; Value = "default" },
+        @{ Label = "Campus intranet"; Value = "local" },
+        @{ Label = "China Unicom"; Value = "unicom" },
+        @{ Label = "China Telecom"; Value = "ctcc" }
     )
 
     Write-Host ""
