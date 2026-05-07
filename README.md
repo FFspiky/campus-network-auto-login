@@ -16,7 +16,9 @@ Windows 开机自动登录校园 ePortal 认证的脚本。当前配置已经在
 
 - `campus_login.py`：自动登录主脚本。
 - `config.example.json`：配置模板，复制为 `config.json` 后使用。
+- `setup.ps1`：交互式配置引导脚本。
 - `install_task.ps1`：安装 Windows 开机自启计划任务。
+- `check_task.ps1`：检查计划任务配置、最近运行结果和日志。
 - `requirements.txt`：Python 依赖列表。
 - `.gitignore`：忽略本地配置、日志和 Python 缓存文件。
 
@@ -36,17 +38,42 @@ cd campus-network-auto-login
 3. 点击 `Download ZIP`。
 4. 解压后进入项目目录。
 
-## 环境准备
+## 快速开始
 
 1. 安装 Python 3。
 2. 在项目目录打开 PowerShell。
-3. 安装依赖：
+3. 运行交互式引导：
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\setup.ps1
+```
+
+引导会依次完成：
+
+- 检查 Python。
+- 安装依赖。
+- 创建或更新 `config.json`。
+- 输入校园网账号和密码。
+- 选择 `service`，默认是中国移动 `cmcc`。
+- 可选执行一次手动登录测试。
+- 可选安装或更新开机自启任务。
+
+如果要覆盖已有 `config.json`，可以运行：
+
+```powershell
+.\setup.ps1 -Force
+```
+
+## 手动配置
+
+如果不使用交互式引导，也可以手动执行下面步骤。
+
+安装依赖：
 
 ```powershell
 python -m pip install -r requirements.txt
 ```
-
-## 配置账号
 
 复制配置模板：
 
@@ -79,6 +106,12 @@ notepad .\config.json
 
 ```json
 "service": "cmcc"
+```
+
+也可以让脚本从门户接口读取可用服务：
+
+```powershell
+python .\campus_login.py --config .\config.json --list-services
 ```
 
 已经验证可用的登录接口是：
@@ -159,6 +192,15 @@ Get-Content .\campus_login.log -Tail 50
 ```
 
 也可以在“任务计划程序”中右键 `CampusNetworkAutoLogin`，点击“运行”，手动触发一次任务。
+
+如果需要检查任务是否按预期安装，运行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\check_task.ps1
+```
+
+它会输出任务触发器、安全选项、最近运行结果和日志尾部。
 
 ## 常见问题
 

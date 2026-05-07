@@ -144,6 +144,67 @@ def check_online(session: requests.Session, config: dict[str, Any]) -> tuple[boo
     return False, final_url
 
 
+def read_response_text(response: requests.Response) -> str:
+    if not response.encoding or response.encoding.lower() == "iso-8859-1":
+        response.encoding = response.apparent_encoding
+    return response.text
+
+
+def fix_mojibake(value: str) -> str:
+    try:
+        return value.encode("latin1").decode("utf-8")
+    except UnicodeError:
+        return value
+
+
+def list_services(config: dict[str, Any], portal_url: str | None) -> int:
+    session = requests.Session()
+    session.trust_env = False
+
+    if not portal_url:
+        online, detected_portal_url = check_online(session, config)
+        if online:
+            logging.info("Internet is reachable; listing services without a portal query string.")
+        portal_url = detected_portal_url
+
+    query_string = urlparse(portal_url).query if portal_url else ""
+    services_url = urljoin(config["portal_base"], "InterFace.do")
+
+    try:
+        response = session.post(
+            services_url,
+            params={"method": "getServices", "queryString": query_string},
+            timeout=config["timeout_seconds"],
+            headers=config["headers"],
+            verify=config["verify_tls"],
+        )
+        response.raise_for_status()
+        data = json.loads(read_response_text(response))
+    except (requests.RequestException, ValueError) as exc:
+        print(f"ERROR: Failed to fetch services: {exc}", file=sys.stderr)
+        return 1
+
+    service_json = data.get("serviceJson") or data.get("services") or "[]"
+    try:
+        services = json.loads(fix_mojibake(service_json))
+    except ValueError as exc:
+        print(f"ERROR: Failed to parse services: {exc}", file=sys.stderr)
+        return 1
+
+    if not services:
+        print("No services found.")
+        return 0
+
+    print("Available services:")
+    for item in services:
+        name = item.get("serviceName", "")
+        display = fix_mojibake(str(item.get("serviceShowName", "")))
+        default = " (default)" if item.get("serviceDefault") == "true" else ""
+        print(f"- {name}: {display}{default}")
+
+    return 0
+
+
 def build_login_request(config: dict[str, Any], portal_url: str | None) -> tuple[str, str, dict[str, Any], dict[str, Any]]:
     login_url = config.get("login_url") or urljoin(config["portal_base"], "InterFace.do?method=login")
     method = str(config.get("login_method", "POST")).upper()
@@ -251,6 +312,15 @@ def parse_args() -> argparse.Namespace:
         default=str(Path(__file__).with_name("config.json")),
         help="Path to config.json.",
     )
+    parser.add_argument(
+        "--list-services",
+        action="store_true",
+        help="List services exposed by the configured ePortal.",
+    )
+    parser.add_argument(
+        "--portal-url",
+        help="Portal URL to use when listing services.",
+    )
     return parser.parse_args()
 
 
@@ -258,6 +328,9 @@ def main() -> int:
     args = parse_args()
     try:
         config = load_config(Path(args.config).expanduser().resolve())
+        if args.list_services:
+            setup_logging(config)
+            return list_services(config, args.portal_url)
         return run(config)
     except LoginError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
