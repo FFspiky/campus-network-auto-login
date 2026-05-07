@@ -138,6 +138,14 @@ Scheduled task 'CampusNetworkAutoLogin' installed.
 CampusNetworkAutoLogin
 ```
 
+脚本会自动设置以下安全选项：
+
+- 不管用户是否登录都要运行
+- 不存储密码
+- 使用最高权限运行
+
+如果之前已经安装过旧版本任务，重新用管理员 PowerShell 运行 `.\install_task.ps1` 即可覆盖更新。
+
 ## 验证开机自动登录
 
 1. 重启电脑。

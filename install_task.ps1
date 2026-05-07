@@ -34,6 +34,12 @@ $action = New-ScheduledTaskAction `
     -WorkingDirectory $ProjectDir
 
 $trigger = New-ScheduledTaskTrigger -AtStartup
+$principalUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+$principal = New-ScheduledTaskPrincipal `
+    -UserId $principalUser `
+    -LogonType S4U `
+    -RunLevel Highest
+
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
@@ -44,11 +50,10 @@ Register-ScheduledTask `
     -TaskName $TaskName `
     -Action $action `
     -Trigger $trigger `
+    -Principal $principal `
     -Settings $settings `
     -Description "Auto-login to the campus network during Windows startup." `
-    -User $env:USERNAME `
-    -RunLevel Highest `
     -Force
 
 Write-Host "Scheduled task '$TaskName' installed."
-Write-Host "Open Task Scheduler and enable 'Run whether user is logged on or not' if Windows did not prompt for it."
+Write-Host "Security options: run whether the user is logged on or not, do not store password, run with highest privileges."
