@@ -1,0 +1,34 @@
+{
+  "username": "YOUR_STUDENT_ID",
+  "password": "YOUR_PASSWORD",
+  "portal_base": "https://wlan.upc.edu.cn/eportal/",
+  "check_url": "http://www.msftconnecttest.com/connecttest.txt",
+  "check_expected_text": "Microsoft Connect Test",
+  "login_url": "https://wlan.upc.edu.cn/eportal/InterFace.do?method=login",
+  "login_method": "POST",
+  "service": "",
+  "max_wait_seconds": 300,
+  "retry_interval_seconds": 10,
+  "timeout_seconds": 8,
+  "verify_tls": true,
+  "log_file": "campus_login.log",
+  "login_payload": {
+    "userId": "{username}",
+    "password": "{password}",
+    "service": "{service}",
+    "queryString": "{query_string}",
+    "operatorPwd": "",
+    "operatorUserId": "",
+    "validcode": "",
+    "passwordEncrypt": "false"
+  },
+  "login_query": {},
+  "headers": {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+  },
+  "success_indicators": [
+    "success",
+    "认证成功",
+    "登录成功"
+  ]
+}
