@@ -1,65 +1,205 @@
-# Campus Network Auto Login
+# 校园网开机自动登录
 
-Windows startup helper for campus ePortal authentication.
+Windows 开机自动登录校园 ePortal 认证的脚本。当前配置已经在中国石油大学（华东）校园网环境下验证通过，适合需要电脑开机后自动完成校园网认证的场景。
 
-The success URL from the browser, such as `success.jsp?...`, is not used as the login endpoint. It only confirms the portal host. The script logs in through the configurable ePortal interface, then checks whether the internet is reachable. By default, the network check expects the Microsoft connectivity test response text so a captive portal HTML page is not mistaken for internet access.
+脚本会先检测当前是否已经可以访问互联网。如果还没有联网，并且检测请求被重定向到校园网认证页，就会自动向 ePortal 登录接口提交账号、密码和服务类型，然后再次检测联网状态。
 
-## Files
+## 功能特点
 
-- `campus_login.py`: startup login script.
-- `config.example.json`: copy this to `config.json` and fill in your account.
-- `install_task.ps1`: installs a Windows startup scheduled task.
-- `requirements.txt`: Python dependency list.
+- 支持 Windows 开机后自动运行。
+- 支持手动运行测试，方便先确认配置是否正确。
+- 默认跳过系统代理，避免请求被本机代理端口拦截。
+- 支持通过 `config.json` 配置账号、密码、运营商服务和登录接口。
+- 登录日志默认写入 `campus_login.log`，便于排查问题。
 
-## Setup on Windows
+## 文件说明
 
-1. Install Python 3.
-2. Open PowerShell in this folder.
-3. Install dependencies:
+- `campus_login.py`：自动登录主脚本。
+- `config.example.json`：配置模板，复制为 `config.json` 后使用。
+- `install_task.ps1`：安装 Windows 开机自启计划任务。
+- `requirements.txt`：Python 依赖列表。
+- `.gitignore`：忽略本地配置、日志和 Python 缓存文件。
 
-   ```powershell
-   python -m pip install -r requirements.txt
-   ```
+## 获取项目
 
-4. Create your config:
+方式一：使用 Git 克隆项目。
 
-   ```powershell
-   Copy-Item .\config.example.json .\config.json
-   notepad .\config.json
-   ```
-
-5. Fill in `username` and `password`.
-6. Test manually:
-
-   ```powershell
-   python .\campus_login.py --config .\config.json
-   ```
-
-7. Install the startup task from an elevated PowerShell:
-
-   ```powershell
-   Set-ExecutionPolicy -Scope Process Bypass
-   .\install_task.ps1
-   ```
-
-## Confirming the login request
-
-The example config uses the common ePortal endpoint:
-
-```text
-https://wlan.upc.edu.cn/eportal/InterFace.do?method=login
+```powershell
+git clone https://github.com/FFspiky/campus-network-auto-login.git
+cd campus-network-auto-login
 ```
 
-If manual testing fails, confirm the real request:
+方式二：下载 ZIP 压缩包。
 
-1. Disconnect or log out from the campus network.
-2. Open the login page in a browser.
-3. Press `F12`, open the Network tab, then log in manually.
-4. Select the login request.
-5. Copy the Request URL, method, and form data.
-6. Update `login_url`, `login_method`, and `login_payload` in `config.json`.
+1. 打开项目 GitHub 页面。
+2. 点击 `Code`。
+3. 点击 `Download ZIP`。
+4. 解压后进入项目目录。
 
-Placeholders available in config values:
+## 环境准备
+
+1. 安装 Python 3。
+2. 在项目目录打开 PowerShell。
+3. 安装依赖：
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+## 配置账号
+
+复制配置模板：
+
+```powershell
+Copy-Item .\config.example.json .\config.json
+notepad .\config.json
+```
+
+至少需要修改这几项：
+
+```json
+{
+  "username": "你的校园网账号",
+  "password": "你的校园网密码",
+  "service": "cmcc"
+}
+```
+
+中国石油大学（华东）ePortal 常用 `service` 字段如下：
+
+| service 值 | 页面显示 |
+| --- | --- |
+| `default` | 校园网 |
+| `local` | 校园内网 |
+| `cmcc` | 中国移动 |
+| `unicom` | 中国联通 |
+| `ctcc` | 中国电信 |
+
+如果你使用中国移动，保持：
+
+```json
+"service": "cmcc"
+```
+
+已经验证可用的登录接口是：
+
+```json
+"login_url": "http://wlan.upc.edu.cn/eportal/InterFace.do?method=login"
+```
+
+注意：`config.json` 会保存明文密码，已经被 `.gitignore` 忽略。不要把它提交到 GitHub。
+
+## 手动测试
+
+先退出校园网登录，或者断开 Wi-Fi 后重新连接，确保浏览器访问网页会跳到校园网认证页。
+
+然后运行：
+
+```powershell
+python .\campus_login.py --config .\config.json
+```
+
+成功时会看到类似日志：
+
+```text
+Campus login started.
+Network check redirected to portal: ...
+Submitting campus login request to http://wlan.upc.edu.cn/eportal/InterFace.do?method=login.
+Login response: HTTP 200.
+Login response indicates success.
+Internet is already reachable.
+Campus login completed.
+```
+
+如果已经联网，脚本会直接输出：
+
+```text
+Internet is already reachable.
+```
+
+## 安装开机自启
+
+手动测试成功后，用管理员身份打开 PowerShell，进入项目目录后运行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\install_task.ps1
+```
+
+看到以下内容表示计划任务安装成功：
+
+```text
+Scheduled task 'CampusNetworkAutoLogin' installed.
+```
+
+安装后可以在 Windows “任务计划程序”中找到：
+
+```text
+CampusNetworkAutoLogin
+```
+
+## 验证开机自动登录
+
+1. 重启电脑。
+2. 确认 Windows 自动连接校园 Wi-Fi。
+3. 等待 10 到 30 秒。
+4. 打开浏览器访问网页，确认是否已联网。
+5. 如果没有联网，查看日志：
+
+```powershell
+Get-Content .\campus_login.log -Tail 50
+```
+
+也可以在“任务计划程序”中右键 `CampusNetworkAutoLogin`，点击“运行”，手动触发一次任务。
+
+## 常见问题
+
+### 提示 service 不能为空
+
+说明 `config.json` 中的 `service` 为空，或者没有按门户要求填写真实字段值。中国移动应填写：
+
+```json
+"service": "cmcc"
+```
+
+不是：
+
+```json
+"service": "中国移动"
+```
+
+### HTTPS 握手失败
+
+如果看到类似错误：
+
+```text
+sslv3 alert handshake failure
+```
+
+请确认 `login_url` 使用的是 `http`，不是 `https`：
+
+```json
+"login_url": "http://wlan.upc.edu.cn/eportal/InterFace.do?method=login"
+```
+
+### 请求走了本机代理
+
+如果日志中出现 `127.0.0.1:7897` 之类的代理地址，说明系统代理影响了 Python 请求。当前脚本已经设置 `session.trust_env = False`，默认不会读取系统代理。
+
+### 如何确认真实登录请求
+
+如果你的学校或门户配置不同，可以手动确认接口：
+
+1. 退出校园网登录。
+2. 打开校园网认证页。
+3. 按 `F12` 打开浏览器开发者工具。
+4. 切换到 Network（网络）标签页。
+5. 手动输入账号密码登录。
+6. 找到登录请求。
+7. 复制 Request URL、请求方法和表单数据。
+8. 对应更新 `config.json` 中的 `login_url`、`login_method` 和 `login_payload`。
+
+配置值中支持以下占位符：
 
 - `{username}`
 - `{password}`
@@ -68,8 +208,16 @@ Placeholders available in config values:
 - `{query_string}`
 - `{query_string_encoded}`
 
-## Notes
+## 卸载开机任务
 
-- The password is stored in plain text because this version is optimized for simple unattended startup.
-- For Wi-Fi before desktop login, Windows must be able to connect to the saved Wi-Fi at the lock screen.
-- Logs are written to `campus_login.log` beside the config file by default.
+如果不再需要开机自动登录，可以用管理员 PowerShell 执行：
+
+```powershell
+Unregister-ScheduledTask -TaskName CampusNetworkAutoLogin -Confirm:$false
+```
+
+## 安全说明
+
+- `config.json` 包含明文账号密码，只能保存在本机。
+- 不要提交 `config.json`、`campus_login.log` 或任何包含真实账号密码的文件。
+- 如果误提交了真实密码，请立即修改校园网密码，并清理 Git 历史后再公开仓库。

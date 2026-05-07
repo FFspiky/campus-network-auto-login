@@ -17,7 +17,7 @@ import requests
 
 
 DEFAULT_CONFIG = {
-    "portal_base": "https://wlan.upc.edu.cn/eportal/",
+    "portal_base": "http://wlan.upc.edu.cn/eportal/",
     "check_url": "http://www.msftconnecttest.com/connecttest.txt",
     "check_expected_text": "Microsoft Connect Test",
     "max_wait_seconds": 300,
@@ -25,7 +25,7 @@ DEFAULT_CONFIG = {
     "timeout_seconds": 8,
     "verify_tls": True,
     "login_method": "POST",
-    "service": "",
+    "service": "cmcc",
     "password_encrypt": "false",
     "headers": {
         "User-Agent": (
@@ -58,7 +58,7 @@ def load_config(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise LoginError(f"Config file not found: {path}")
 
-    with path.open("r", encoding="utf-8") as file:
+    with path.open("r", encoding="utf-8-sig") as file:
         user_config = json.load(file)
 
     config = DEFAULT_CONFIG | user_config
@@ -220,6 +220,7 @@ def run(config: dict[str, Any]) -> int:
     setup_logging(config)
     deadline = time.monotonic() + int(config["max_wait_seconds"])
     session = requests.Session()
+    session.trust_env = False
     last_portal_url: str | None = None
 
     logging.info("Campus login started.")
