@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auto-login helper for campus ePortal networks on Windows startup."""
+"""Auto-login helper for campus ePortal networks."""
 
 from __future__ import annotations
 
