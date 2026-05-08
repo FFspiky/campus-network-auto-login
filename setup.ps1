@@ -107,6 +107,51 @@ function Test-IsElevated {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Install-StartupTaskElevated {
+    param(
+        [string]$InstallScriptPath,
+        [string]$ProjectDir,
+        [string]$PythonExe
+    )
+
+    $arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy Bypass",
+        "-File `"$InstallScriptPath`"",
+        "-ProjectDir `"$ProjectDir`"",
+        "-PythonExe `"$PythonExe`""
+    ) -join " "
+
+    Write-Host "Startup task installation requires Administrator permission."
+    Write-Host "A Windows UAC prompt will open. Please approve it to install the scheduled task."
+
+    try {
+        $process = Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList $arguments `
+            -Verb RunAs `
+            -Wait `
+            -PassThru
+    } catch {
+        Write-Host "Could not start elevated PowerShell: $($_.Exception.Message)"
+        Write-Host "Open PowerShell as Administrator and run:"
+        Write-Host "  Set-ExecutionPolicy -Scope Process Bypass"
+        Write-Host "  .\install_task.ps1"
+        return $false
+    }
+
+    if ($process.ExitCode -ne 0) {
+        Write-Host "Elevated startup task installation exited with code $($process.ExitCode)."
+        Write-Host "Open PowerShell as Administrator and run:"
+        Write-Host "  Set-ExecutionPolicy -Scope Process Bypass"
+        Write-Host "  .\install_task.ps1"
+        return $false
+    }
+
+    Write-Host "Startup task installation finished."
+    return $true
+}
+
 $configTemplatePath = Join-Path $ProjectDir "config.example.json"
 $configPath = Join-Path $ProjectDir "config.json"
 $requirementsPath = Join-Path $ProjectDir "requirements.txt"
@@ -159,21 +204,29 @@ if (Ask-YesNo "Run a manual login test now?" $true) {
     }
 }
 
+$startupTaskInstalled = $false
 if (Ask-YesNo "Install or update the Windows startup task?" $true) {
     if (-not (Test-IsElevated)) {
-        Write-Host "Startup task installation requires an elevated PowerShell."
-        Write-Host "Open PowerShell as Administrator and run:"
-        Write-Host "  Set-ExecutionPolicy -Scope Process Bypass"
-        Write-Host "  .\install_task.ps1"
+        $startupTaskInstalled = Install-StartupTaskElevated `
+            -InstallScriptPath $installScriptPath `
+            -ProjectDir $ProjectDir `
+            -PythonExe $pythonExe
     } else {
         & $installScriptPath -ProjectDir $ProjectDir -PythonExe $pythonExe
         if ($LASTEXITCODE -ne 0) {
             throw "Startup task installation failed."
         }
+        $startupTaskInstalled = $true
     }
 }
 
 Write-Host ""
 Write-Host "Setup complete."
-Write-Host "You can check the task with:"
-Write-Host "  .\check_task.ps1"
+if ($startupTaskInstalled) {
+    Write-Host "You can check the task with:"
+    Write-Host "  .\check_task.ps1"
+} else {
+    Write-Host "If the startup task was not installed, open PowerShell as Administrator and run:"
+    Write-Host "  Set-ExecutionPolicy -Scope Process Bypass"
+    Write-Host "  .\install_task.ps1"
+}

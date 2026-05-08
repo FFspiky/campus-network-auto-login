@@ -6,6 +6,42 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Test-IsElevated {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+if (-not (Test-IsElevated)) {
+    $arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy Bypass",
+        "-File `"$PSCommandPath`"",
+        "-TaskName `"$TaskName`"",
+        "-ProjectDir `"$ProjectDir`""
+    )
+
+    if ($PythonExe) {
+        $arguments += "-PythonExe `"$PythonExe`""
+    }
+
+    Write-Host "Scheduled task installation requires Administrator permission."
+    Write-Host "A Windows UAC prompt will open. Please approve it to continue."
+
+    try {
+        $process = Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList ($arguments -join " ") `
+            -Verb RunAs `
+            -Wait `
+            -PassThru
+    } catch {
+        throw "Could not start elevated PowerShell: $($_.Exception.Message)"
+    }
+
+    exit $process.ExitCode
+}
+
 if (-not $PythonExe) {
     $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
     if (-not $pythonCommand) {

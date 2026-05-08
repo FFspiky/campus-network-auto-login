@@ -56,6 +56,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 引导会检查 Python、安装依赖、创建或更新 `config.json`、录入账号密码、选择 `service`、可选执行一次手动登录测试，并可选安装 Windows 开机自启任务。
 
+安装 Windows 开机自启任务需要管理员权限。`setup.ps1` 会自动弹出 Windows UAC 提权窗口；批准后会继续安装计划任务。如果 UAC 被取消或被系统策略拦截，请按“Windows 安装开机自启”章节手动安装。
+
 ## macOS 快速开始
 
 1. 安装 Python 3。可以使用系统已有 Python，也可以用 Homebrew 安装：
@@ -203,12 +205,16 @@ Internet is already reachable.
 
 ## Windows 安装开机自启
 
-手动测试成功后，用管理员身份打开 PowerShell，进入项目目录后运行：
+手动测试成功后，可以直接在普通 PowerShell 中运行：
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\install_task.ps1
 ```
+
+脚本会自动弹出 Windows UAC 提权窗口。批准后会用管理员权限写入计划任务。
+
+如果自动提权失败，再手动用管理员身份打开 PowerShell，进入项目目录后运行同样的命令。
 
 看到以下内容表示计划任务安装成功：
 
@@ -222,7 +228,7 @@ Scheduled task 'CampusNetworkAutoLogin' installed.
 CampusNetworkAutoLogin
 ```
 
-如果之前已经安装过旧版本任务，重新用管理员 PowerShell 运行 `.\install_task.ps1` 即可覆盖更新。
+如果之前已经安装过旧版本任务，重新运行 `.\install_task.ps1` 即可覆盖更新。
 
 检查任务：
 
