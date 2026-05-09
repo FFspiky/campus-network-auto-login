@@ -23,7 +23,10 @@ if (-not $task) {
 
 $taskInfo = Get-ScheduledTaskInfo -TaskName $TaskName
 $startupTrigger = $task.Triggers | Where-Object { $_.CimClass.CimClassName -eq "MSFT_TaskBootTrigger" }
-$eventTrigger = $task.Triggers | Where-Object { $_.CimClass.CimClassName -eq "MSFT_TaskEventTrigger" }
+$eventTriggers = @($task.Triggers | Where-Object { $_.CimClass.CimClassName -eq "MSFT_TaskEventTrigger" })
+$unlockTrigger = $task.Triggers | Where-Object { $_.CimClass.CimClassName -eq "MSFT_TaskSessionStateChangeTrigger" }
+$wlanEventTrigger = $eventTriggers | Where-Object { $_.Subscription -like "*Microsoft-Windows-WLAN-AutoConfig/Operational*" }
+$wakeEventTrigger = $eventTriggers | Where-Object { $_.Subscription -like "*Microsoft-Windows-Power-Troubleshooter*" }
 $action = $task.Actions | Select-Object -First 1
 $logPath = Join-Path $ProjectDir "campus_login.log"
 
@@ -32,7 +35,9 @@ Write-Host "--------------"
 Write-Field "Name" $task.TaskName
 Write-Field "State" $task.State
 Write-Field "Startup trigger" ($(if ($startupTrigger) { "Yes" } else { "No" }))
-Write-Field "WLAN event trigger" ($(if ($eventTrigger) { "Yes" } else { "No" }))
+Write-Field "WLAN event trigger" ($(if ($wlanEventTrigger) { "Yes" } else { "No" }))
+Write-Field "Wake event trigger" ($(if ($wakeEventTrigger) { "Yes" } else { "No" }))
+Write-Field "Unlock trigger" ($(if ($unlockTrigger) { "Yes" } else { "No" }))
 Write-Field "Run as" $task.Principal.UserId
 Write-Field "Logon type" $task.Principal.LogonType
 Write-Field "Run level" $task.Principal.RunLevel

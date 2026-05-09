@@ -6,7 +6,7 @@
 
 ## 功能特点
 
-- 支持 Windows 开机和 WLAN 连接事件触发。
+- 支持 Windows 开机、WLAN 连接、睡眠唤醒和解锁事件触发。
 - 支持 macOS 登录、网络状态变化和定时兜底触发。
 - 默认只在连接到 `upc` Wi-Fi 时尝试登录，避免影响其他网络。
 - 支持手动运行测试，方便先确认配置是否正确。
@@ -21,7 +21,7 @@
 - `config.example.json`：配置模板，复制为 `config.json` 后使用。
 - `setup_gui.py`：Windows/macOS 图形化配置引导。
 - `setup.ps1`：Windows 交互式配置引导脚本。
-- `install_task.ps1`：安装 Windows 开机和 WLAN 连接触发计划任务。
+- `install_task.ps1`：安装 Windows 开机、WLAN 连接、唤醒和解锁触发计划任务。
 - `check_task.ps1`：检查 Windows 计划任务配置、最近运行结果和日志。
 - `setup_macos.sh`：macOS 交互式配置引导脚本。
 - `install_launch_agent.sh`：安装 macOS 网络触发 LaunchAgent。
@@ -301,12 +301,14 @@ Scheduled task 'CampusNetworkAutoLogin' installed.
 CampusNetworkAutoLogin
 ```
 
-任务包含两个触发器：
+任务包含四类触发器：
 
 - Windows 开机触发。
 - WLAN 连接事件触发。
+- 系统从睡眠/休眠唤醒触发。
+- 用户输入密码解锁会话触发。
 
-开机触发时，即使系统还没有自动连接到 `upc`，`run_on_wifi.py` 也会先扫描并尝试连接目标 SSID。WLAN 连接事件会在连接任意 Wi-Fi 时触发，随后同样由 `run_on_wifi.py` 检查当前 SSID。只有 SSID 匹配 `target_ssids` 时才会发送登录请求。
+开机、唤醒或解锁触发时，即使系统还没有自动连接到 `upc`，`run_on_wifi.py` 也会先扫描并尝试连接目标 SSID。WLAN 连接事件会在连接任意 Wi-Fi 时触发，随后同样由 `run_on_wifi.py` 检查当前 SSID。只有 SSID 匹配 `target_ssids` 时才会发送登录请求。
 
 如果之前已经安装过旧版本任务，重新运行 `.\install_task.ps1` 即可覆盖更新。
 

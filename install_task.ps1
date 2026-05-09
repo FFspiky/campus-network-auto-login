@@ -69,20 +69,28 @@ $escapedUser = [Security.SecurityElement]::Escape($principalUser)
 $escapedPythonExe = [Security.SecurityElement]::Escape($PythonExe)
 $escapedArguments = [Security.SecurityElement]::Escape("`"$scriptPath`" --config `"$configPath`"")
 $escapedProjectDir = [Security.SecurityElement]::Escape($ProjectDir)
-$subscription = @"
+$wlanSubscription = @"
 <QueryList>
   <Query Id="0" Path="Microsoft-Windows-WLAN-AutoConfig/Operational">
     <Select Path="Microsoft-Windows-WLAN-AutoConfig/Operational">*[System[(EventID=8001)]]</Select>
   </Query>
 </QueryList>
 "@
-$escapedSubscription = [Security.SecurityElement]::Escape($subscription)
+$wakeSubscription = @"
+<QueryList>
+  <Query Id="0" Path="System">
+    <Select Path="System">*[System[Provider[@Name='Microsoft-Windows-Power-Troubleshooter'] and (EventID=1)]]</Select>
+  </Query>
+</QueryList>
+"@
+$escapedWlanSubscription = [Security.SecurityElement]::Escape($wlanSubscription)
+$escapedWakeSubscription = [Security.SecurityElement]::Escape($wakeSubscription)
 
 $taskXml = @"
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>Auto-login to the campus network on Windows startup and Wi-Fi connection events.</Description>
+    <Description>Auto-login to the campus network on Windows startup, Wi-Fi connection, wake, and unlock events.</Description>
   </RegistrationInfo>
   <Triggers>
     <BootTrigger>
@@ -90,8 +98,17 @@ $taskXml = @"
     </BootTrigger>
     <EventTrigger>
       <Enabled>true</Enabled>
-      <Subscription>$escapedSubscription</Subscription>
+      <Subscription>$escapedWlanSubscription</Subscription>
     </EventTrigger>
+    <EventTrigger>
+      <Enabled>true</Enabled>
+      <Subscription>$escapedWakeSubscription</Subscription>
+    </EventTrigger>
+    <SessionStateChangeTrigger>
+      <Enabled>true</Enabled>
+      <StateChange>SessionUnlock</StateChange>
+      <UserId>$escapedUser</UserId>
+    </SessionStateChangeTrigger>
   </Triggers>
   <Principals>
     <Principal id="Author">
@@ -131,6 +148,6 @@ wevtutil sl Microsoft-Windows-WLAN-AutoConfig/Operational /e:true
 Register-ScheduledTask -TaskName $TaskName -Xml $taskXml -Force
 
 Write-Host "Scheduled task '$TaskName' installed."
-Write-Host "Triggers: Windows startup and WLAN connection event."
+Write-Host "Triggers: Windows startup, WLAN connection, wake from sleep, and session unlock."
 Write-Host "The task runs run_on_wifi.py, which only submits login when the current SSID matches config.json target_ssids."
 Write-Host "Security options: run whether the user is logged on or not, do not store password, run with highest available privileges."
