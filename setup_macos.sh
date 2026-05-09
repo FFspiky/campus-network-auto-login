@@ -65,6 +65,20 @@ read_password_text() {
   printf '%s' "$value"
 }
 
+read_with_default() {
+  local prompt="$1"
+  local default="$2"
+  local value=""
+  read -r -p "$prompt [$default] " value
+  if [[ -z "$value" ]]; then
+    printf '%s' "$default"
+    return
+  fi
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
 select_service_value() {
   echo >&2
   echo "Select service:" >&2
@@ -134,8 +148,9 @@ fi
 username="$(read_required "Campus network username")"
 password="$(read_password_text "Campus network password")"
 service="$(select_service_value)"
+target_ssid="$(read_with_default "Target Wi-Fi SSID" "upc")"
 
-"$python_exe" - "$config_path" "$username" "$password" "$service" <<'PY'
+"$python_exe" - "$config_path" "$username" "$password" "$service" "$target_ssid" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -145,6 +160,9 @@ config = json.loads(config_path.read_text(encoding="utf-8-sig"))
 config["username"] = sys.argv[2]
 config["password"] = sys.argv[3]
 config["service"] = sys.argv[4]
+config["target_ssids"] = [sys.argv[5]]
+config["auto_connect_wifi"] = True
+config["wifi_connect_timeout_seconds"] = 45
 config_path.write_text(
     json.dumps(config, ensure_ascii=False, indent=2) + "\n",
     encoding="utf-8",

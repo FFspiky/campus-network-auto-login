@@ -37,14 +37,14 @@ if [[ -z "$python_exe" ]]; then
   fi
 fi
 
-script_path="$project_dir/campus_login.py"
+script_path="$project_dir/run_on_wifi.py"
 config_path="$project_dir/config.json"
 log_dir="$project_dir/logs"
 plist_dir="$HOME/Library/LaunchAgents"
 plist_path="$plist_dir/$label.plist"
 
 if [[ ! -f "$script_path" ]]; then
-  echo "campus_login.py not found at $script_path" >&2
+  echo "run_on_wifi.py not found at $script_path" >&2
   exit 1
 fi
 
@@ -75,6 +75,11 @@ cat > "$plist_path" <<PLIST
   <true/>
   <key>StartInterval</key>
   <integer>300</integer>
+  <key>KeepAlive</key>
+  <dict>
+    <key>NetworkState</key>
+    <true/>
+  </dict>
   <key>StandardOutPath</key>
   <string>$log_dir/launchd.out.log</string>
   <key>StandardErrorPath</key>
@@ -92,4 +97,5 @@ launchctl kickstart -k "gui/$(id -u)/$label"
 
 echo "LaunchAgent '$label' installed."
 echo "Plist: $plist_path"
-echo "It runs at user login and every 300 seconds."
+echo "It runs at user login, on network availability changes, and every 300 seconds."
+echo "It runs run_on_wifi.py, which only submits login when the current SSID matches config.json target_ssids."

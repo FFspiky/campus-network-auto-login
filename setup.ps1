@@ -39,6 +39,19 @@ function Read-Required {
     }
 }
 
+function Read-WithDefault {
+    param(
+        [string]$Prompt,
+        [string]$Default
+    )
+
+    $value = Read-Host "$Prompt [$Default]"
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $Default
+    }
+    return $value.Trim()
+}
+
 function Read-PasswordText {
     param([string]$Prompt)
 
@@ -189,6 +202,10 @@ $config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $config.username = Read-Required "Campus network username"
 $config.password = Read-PasswordText "Campus network password"
 $config.service = Select-ServiceValue
+$targetSsid = Read-WithDefault "Target Wi-Fi SSID" "upc"
+$config | Add-Member -NotePropertyName target_ssids -NotePropertyValue @($targetSsid) -Force
+$config | Add-Member -NotePropertyName auto_connect_wifi -NotePropertyValue $true -Force
+$config | Add-Member -NotePropertyName wifi_connect_timeout_seconds -NotePropertyValue 45 -Force
 
 $config |
     ConvertTo-Json -Depth 20 |

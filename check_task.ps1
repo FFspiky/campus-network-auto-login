@@ -23,6 +23,7 @@ if (-not $task) {
 
 $taskInfo = Get-ScheduledTaskInfo -TaskName $TaskName
 $startupTrigger = $task.Triggers | Where-Object { $_.CimClass.CimClassName -eq "MSFT_TaskBootTrigger" }
+$eventTrigger = $task.Triggers | Where-Object { $_.CimClass.CimClassName -eq "MSFT_TaskEventTrigger" }
 $action = $task.Actions | Select-Object -First 1
 $logPath = Join-Path $ProjectDir "campus_login.log"
 
@@ -31,6 +32,7 @@ Write-Host "--------------"
 Write-Field "Name" $task.TaskName
 Write-Field "State" $task.State
 Write-Field "Startup trigger" ($(if ($startupTrigger) { "Yes" } else { "No" }))
+Write-Field "WLAN event trigger" ($(if ($eventTrigger) { "Yes" } else { "No" }))
 Write-Field "Run as" $task.Principal.UserId
 Write-Field "Logon type" $task.Principal.LogonType
 Write-Field "Run level" $task.Principal.RunLevel
@@ -57,6 +59,7 @@ Write-Host ""
 Write-Host "Project files"
 Write-Host "-------------"
 Write-Field "Project directory" $ProjectDir
+Write-Field "run_on_wifi.py" (Test-Path (Join-Path $ProjectDir "run_on_wifi.py"))
 Write-Field "campus_login.py" (Test-Path (Join-Path $ProjectDir "campus_login.py"))
 Write-Field "config.json" (Test-Path (Join-Path $ProjectDir "config.json"))
 Write-Field "Log file" (Test-Path $logPath)

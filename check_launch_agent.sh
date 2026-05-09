@@ -41,6 +41,7 @@ write_field "Label" "$label"
 write_field "Plist" "$plist_path"
 write_field "Plist exists" "$([[ -f "$plist_path" ]] && echo Yes || echo No)"
 write_field "Project directory" "$project_dir"
+write_field "run_on_wifi.py" "$([[ -f "$project_dir/run_on_wifi.py" ]] && echo Yes || echo No)"
 write_field "campus_login.py" "$([[ -f "$project_dir/campus_login.py" ]] && echo Yes || echo No)"
 write_field "config.json" "$([[ -f "$project_dir/config.json" ]] && echo Yes || echo No)"
 

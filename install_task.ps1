@@ -53,43 +53,84 @@ if (-not $PythonExe) {
     $PythonExe = $pythonCommand.Source
 }
 
-$scriptPath = Join-Path $ProjectDir "campus_login.py"
+$scriptPath = Join-Path $ProjectDir "run_on_wifi.py"
 $configPath = Join-Path $ProjectDir "config.json"
 
 if (-not (Test-Path $scriptPath)) {
-    throw "campus_login.py not found at $scriptPath"
+    throw "run_on_wifi.py not found at $scriptPath"
 }
 
 if (-not (Test-Path $configPath)) {
     throw "config.json not found. Copy config.example.json to config.json and fill in your account first."
 }
 
-$action = New-ScheduledTaskAction `
-    -Execute $PythonExe `
-    -Argument "`"$scriptPath`" --config `"$configPath`"" `
-    -WorkingDirectory $ProjectDir
-
-$trigger = New-ScheduledTaskTrigger -AtStartup
 $principalUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-$principal = New-ScheduledTaskPrincipal `
-    -UserId $principalUser `
-    -LogonType S4U `
-    -RunLevel Highest
+$escapedUser = [Security.SecurityElement]::Escape($principalUser)
+$escapedPythonExe = [Security.SecurityElement]::Escape($PythonExe)
+$escapedArguments = [Security.SecurityElement]::Escape("`"$scriptPath`" --config `"$configPath`"")
+$escapedProjectDir = [Security.SecurityElement]::Escape($ProjectDir)
+$subscription = @"
+<QueryList>
+  <Query Id="0" Path="Microsoft-Windows-WLAN-AutoConfig/Operational">
+    <Select Path="Microsoft-Windows-WLAN-AutoConfig/Operational">*[System[(EventID=8001)]]</Select>
+  </Query>
+</QueryList>
+"@
+$escapedSubscription = [Security.SecurityElement]::Escape($subscription)
 
-$settings = New-ScheduledTaskSettingsSet `
-    -AllowStartIfOnBatteries `
-    -DontStopIfGoingOnBatteries `
-    -StartWhenAvailable `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+$taskXml = @"
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Auto-login to the campus network on Windows startup and Wi-Fi connection events.</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+    </BootTrigger>
+    <EventTrigger>
+      <Enabled>true</Enabled>
+      <Subscription>$escapedSubscription</Subscription>
+    </EventTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>$escapedUser</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>$escapedPythonExe</Command>
+      <Arguments>$escapedArguments</Arguments>
+      <WorkingDirectory>$escapedProjectDir</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
+"@
 
-Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $action `
-    -Trigger $trigger `
-    -Principal $principal `
-    -Settings $settings `
-    -Description "Auto-login to the campus network during Windows startup." `
-    -Force
+wevtutil sl Microsoft-Windows-WLAN-AutoConfig/Operational /e:true
+Register-ScheduledTask -TaskName $TaskName -Xml $taskXml -Force
 
 Write-Host "Scheduled task '$TaskName' installed."
-Write-Host "Security options: run whether the user is logged on or not, do not store password, run with highest privileges."
+Write-Host "Triggers: Windows startup and WLAN connection event."
+Write-Host "The task runs run_on_wifi.py, which only submits login when the current SSID matches config.json target_ssids."
+Write-Host "Security options: run whether the user is logged on or not, do not store password, run with highest available privileges."

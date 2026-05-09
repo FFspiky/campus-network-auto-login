@@ -1,13 +1,14 @@
-# 校园网开机自动登录
+# 校园网自动登录
 
-自动登录校园 ePortal 认证的脚本，支持 Windows 和 macOS。当前默认配置已经在中国石油大学（华东）校园网环境下验证过，适合电脑开机或用户登录后自动完成校园网认证。
+自动登录校园 ePortal 认证的脚本，支持 Windows 和 macOS。当前默认配置已经在中国石油大学（华东）校园网环境下验证过，适合电脑连接到指定校园 Wi-Fi 后自动完成校园网认证。
 
-脚本会先检测当前是否已经可以访问互联网。如果还没有联网，并且检测请求被重定向到校园网认证页，就会自动向 ePortal 登录接口提交账号、密码和服务类型，然后再次检测联网状态。
+自启任务会先检查当前 Wi-Fi SSID 是否匹配 `config.json` 中的 `target_ssids`，默认是 `upc`。匹配后才会运行登录脚本。登录脚本会先检测当前是否已经可以访问互联网。如果还没有联网，并且检测请求被重定向到校园网认证页，就会自动向 ePortal 登录接口提交账号、密码和服务类型，然后再次检测联网状态。
 
 ## 功能特点
 
-- 支持 Windows 计划任务自启。
-- 支持 macOS LaunchAgent 登录自启。
+- 支持 Windows 开机和 WLAN 连接事件触发。
+- 支持 macOS 登录、网络状态变化和定时兜底触发。
+- 默认只在连接到 `upc` Wi-Fi 时尝试登录，避免影响其他网络。
 - 支持手动运行测试，方便先确认配置是否正确。
 - 默认跳过系统代理，避免请求被本机代理端口拦截。
 - 支持通过 `config.json` 配置账号、密码、运营商服务和登录接口。
@@ -16,12 +17,14 @@
 ## 文件说明
 
 - `campus_login.py`：自动登录主脚本。
+- `run_on_wifi.py`：按当前 Wi-Fi SSID 判断是否运行登录脚本。
 - `config.example.json`：配置模板，复制为 `config.json` 后使用。
+- `setup_gui.py`：Windows/macOS 图形化配置引导。
 - `setup.ps1`：Windows 交互式配置引导脚本。
-- `install_task.ps1`：安装 Windows 开机自启计划任务。
+- `install_task.ps1`：安装 Windows 开机和 WLAN 连接触发计划任务。
 - `check_task.ps1`：检查 Windows 计划任务配置、最近运行结果和日志。
 - `setup_macos.sh`：macOS 交互式配置引导脚本。
-- `install_launch_agent.sh`：安装 macOS 登录自启 LaunchAgent。
+- `install_launch_agent.sh`：安装 macOS 网络触发 LaunchAgent。
 - `check_launch_agent.sh`：检查 macOS LaunchAgent 配置、加载状态和日志。
 - `requirements.txt`：Python 依赖列表。
 - `.gitignore`：忽略本地配置、日志和 Python 缓存文件。
@@ -36,6 +39,24 @@ cd campus-network-auto-login
 ```
 
 也可以在 GitHub 页面点击 `Code`，选择 `Download ZIP` 下载后解压。
+
+## 图形化快速开始
+
+推荐优先使用图形化引导。它支持 Windows 和 macOS，可以完成保存配置、设置目标 Wi-Fi、安装依赖、测试登录和安装自启。
+
+Windows：
+
+```powershell
+python .\setup_gui.py
+```
+
+macOS：
+
+```bash
+python3 setup_gui.py
+```
+
+Windows 安装自启任务仍然需要管理员权限。图形化引导会调用 `install_task.ps1`，由它自动弹出 Windows UAC 提权窗口；批准后继续安装计划任务。
 
 ## Windows 快速开始
 
@@ -54,9 +75,9 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\setup.ps1 -Force
 ```
 
-引导会检查 Python、安装依赖、创建或更新 `config.json`、录入账号密码、选择 `service`、可选执行一次手动登录测试，并可选安装 Windows 开机自启任务。
+引导会检查 Python、安装依赖、创建或更新 `config.json`、录入账号密码、选择 `service`、设置目标 Wi-Fi、可选执行一次手动登录测试，并可选安装 Windows 自启任务。
 
-安装 Windows 开机自启任务需要管理员权限。`setup.ps1` 会自动弹出 Windows UAC 提权窗口；批准后会继续安装计划任务。如果 UAC 被取消或被系统策略拦截，请按“Windows 安装开机自启”章节手动安装。
+安装 Windows 自启任务需要管理员权限。`setup.ps1` 会自动弹出 Windows UAC 提权窗口；批准后会继续安装计划任务。如果 UAC 被取消或被系统策略拦截，请按“Windows 安装自启任务”章节手动安装。
 
 ## macOS 快速开始
 
@@ -84,7 +105,7 @@ chmod +x setup_macos.sh install_launch_agent.sh check_launch_agent.sh
 ./setup_macos.sh --force
 ```
 
-引导会检查 Python、安装依赖、创建或更新 `config.json`、录入账号密码、选择 `service`、可选执行一次手动登录测试，并可选安装 macOS LaunchAgent。
+引导会检查 Python、安装依赖、创建或更新 `config.json`、录入账号密码、选择 `service`、设置目标 Wi-Fi、可选执行一次手动登录测试，并可选安装 macOS LaunchAgent。
 
 macOS 使用用户级 LaunchAgent，安装位置是：
 
@@ -92,7 +113,7 @@ macOS 使用用户级 LaunchAgent，安装位置是：
 ~/Library/LaunchAgents/com.ffspiky.campus-network-auto-login.plist
 ```
 
-它会在用户登录时运行一次，并每 300 秒运行一次。脚本如果发现已经联网，会直接退出。
+它会在用户登录、网络状态变化时运行，并每 300 秒兜底运行一次。只有当前 Wi-Fi 匹配 `target_ssids` 时才会继续登录。
 
 ## 手动配置
 
@@ -129,6 +150,8 @@ notepad .\config.json
 {
   "username": "你的校园网账号",
   "password": "你的校园网密码",
+  "target_ssids": ["upc"],
+  "auto_connect_wifi": true,
   "service": "cmcc"
 }
 ```
@@ -169,6 +192,36 @@ python .\campus_login.py --config .\config.json --list-services
 
 注意：`config.json` 会保存明文密码，已经被 `.gitignore` 忽略。不要把它提交到 GitHub。
 
+## Wi-Fi 触发逻辑
+
+自动安装的任务不会直接运行 `campus_login.py`，而是先运行：
+
+```bash
+python3 run_on_wifi.py --config config.json
+```
+
+`run_on_wifi.py` 会读取 `config.json` 中的 `target_ssids`。如果当前没有连接到目标 Wi-Fi，并且 `auto_connect_wifi` 为 `true`，它会先扫描可见 Wi-Fi，发现目标 SSID 后尝试连接。连接成功后才会调用 `campus_login.py`。
+
+默认配置是：
+
+```json
+"target_ssids": ["upc"],
+"auto_connect_wifi": true,
+"wifi_connect_timeout_seconds": 45
+```
+
+如果校园 Wi-Fi 名称不是 `upc`，请改成真实 SSID。多个 Wi-Fi 可以这样写：
+
+```json
+"target_ssids": ["upc", "UPC"]
+```
+
+平台限制：
+
+- Windows 使用 `netsh wlan connect` 连接目标 Wi-Fi。目标网络通常需要已经保存过 Wi-Fi 配置文件；也就是这台电脑之前手动连过一次 `upc`。
+- macOS 使用 `networksetup -setairportnetwork` 连接目标 Wi-Fi。开放网络可以直接连接；如果目标 Wi-Fi 需要 Wi-Fi 密码，可以在 `config.json` 中额外配置 `"wifi_password": "密码"`。
+- 这里的 Wi-Fi 密码不是校园网门户密码。UPC 这类开放认证网络通常不需要配置 `wifi_password`。
+
 ## 手动测试
 
 先退出校园网登录，或者断开 Wi-Fi 后重新连接，确保浏览器访问网页会跳到校园网认证页。
@@ -203,7 +256,27 @@ Campus login completed.
 Internet is already reachable.
 ```
 
-## Windows 安装开机自启
+测试 Wi-Fi 条件触发包装：
+
+macOS：
+
+```bash
+python3 run_on_wifi.py --config config.json
+```
+
+Windows：
+
+```powershell
+python .\run_on_wifi.py --config .\config.json
+```
+
+如果只想测试 SSID 判断，不想让脚本主动连接 Wi-Fi，可以加：
+
+```bash
+python3 run_on_wifi.py --config config.json --no-connect
+```
+
+## Windows 安装自启任务
 
 手动测试成功后，可以直接在普通 PowerShell 中运行：
 
@@ -228,6 +301,13 @@ Scheduled task 'CampusNetworkAutoLogin' installed.
 CampusNetworkAutoLogin
 ```
 
+任务包含两个触发器：
+
+- Windows 开机触发。
+- WLAN 连接事件触发。
+
+开机触发时，即使系统还没有自动连接到 `upc`，`run_on_wifi.py` 也会先扫描并尝试连接目标 SSID。WLAN 连接事件会在连接任意 Wi-Fi 时触发，随后同样由 `run_on_wifi.py` 检查当前 SSID。只有 SSID 匹配 `target_ssids` 时才会发送登录请求。
+
 如果之前已经安装过旧版本任务，重新运行 `.\install_task.ps1` 即可覆盖更新。
 
 检查任务：
@@ -243,7 +323,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 Get-Content .\campus_login.log -Tail 50
 ```
 
-## macOS 安装登录自启
+## macOS 安装网络触发
 
 手动测试成功后，在项目目录运行：
 
@@ -256,6 +336,8 @@ Get-Content .\campus_login.log -Tail 50
 ```text
 LaunchAgent 'com.ffspiky.campus-network-auto-login' installed.
 ```
+
+LaunchAgent 会在用户登录、网络状态变化时运行，并每 300 秒兜底运行一次。每次运行都会先尝试连接目标 Wi-Fi，再检查当前 SSID。
 
 检查 LaunchAgent：
 
